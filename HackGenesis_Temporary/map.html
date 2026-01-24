@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coastal Threat Map</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: #0D0716;
+            color: #EDEAFB;
+        }
+
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: #6C2BF2;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(13, 7, 22, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .red {
+            background: #FF4444;
+        }
+
+        .orange {
+            background: #FFAA00;
+        }
+
+        .green {
+            background: #00CC66;
+        }
+
+        /* Light popup styles */
+        .leaflet-popup-content-wrapper {
+            background: #fff;
+            color: #333;
+        }
+
+        .leaflet-popup-tip {
+            background: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <a href="frontend.html" class="back-btn">← Back to Home</a>
+    <div id="map"></div>
+
+    <div class="legend">
+        <div class="legend-item"><span class="dot red"></span> High Risk (Cyclone/Swell)</div>
+        <div class="legend-item"><span class="dot orange"></span> Moderate Risk (Pollution)</div>
+        <div class="legend-item"><span class="dot green"></span> Safe</div>
+    </div>
+
+    <!-- Leaflet & Heatmap Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+    <script>
+        // 1. Initialize Map
+        const map = L.map('map').setView([20.5937, 78.9629], 5); // Default center on India
+
+        // 2. Add Tile Layer (OpenStreetMap)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Fetch Heatmap Data from Backend (Restored)
+        fetch('http://localhost:8001/heatmap')
+            .then(res => res.json())
+            .then(heatPoints => {
+                L.heatLayer(heatPoints, {
+                    radius: 20,
+                    blur: 15,
+                    maxZoom: 18,
+                    minOpacity: 0.3,
+                    gradient: { 0.2: 'blue', 0.4: 'cyan', 0.6: 'lime', 0.8: 'yellow', 1.0: 'red' }
+                }).addTo(map);
+            })
+            .catch(err => console.error("Failed to load heatmap", err));
+
+        // 3. Add Legend (Keep your existing legend logic if needed)
+
+        // ---------------------------------------------------------
+        // NEW FEATURE: CLICK TO GET REAL-TIME WIND & WEATHER
+        // ---------------------------------------------------------
+
+        // Helper to get wind direction arrow
+        function getWindArrow(degree) {
+            // Rotate an arrow emoji based on degrees
+            const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+            const index = Math.round(degree / 45) % 8;
+            return arrows[index];
+        }
+
+        // Helper to decode WMO Weather Codes
+        function getWeatherDesc(code) {
+            const codes = {
+                0: 'Clear sky ☀️', 1: 'Mainly clear 🌤', 2: 'Partly cloudy ⛅', 3: 'Overcast ☁️',
+                45: 'Fog 🌫', 48: 'Depositing rime fog 🌫',
+                51: 'Light Drizzle 🌧', 53: 'Moderate Drizzle 🌧', 55: 'Dense Drizzle 🌧',
+                61: 'Slight Rain ☔', 63: 'Moderate Rain ☔', 65: 'Heavy Rain ⛈',
+                80: 'Rain Showers 🌦', 81: 'Moderate Showers 🌦', 82: 'Violent Showers ⛈',
+                95: 'Thunderstorm ⚡', 96: 'Thunderstorm with Hail ⛈', 99: 'Heavy Hail ⛈'
+            };
+            return codes[code] || 'Unknown';
+        }
+
+        // Event Listener: Click on Map
+        map.on('click', async function (e) {
+            const { lat, lng } = e.latlng;
+
+            // 1. Show a "Loading..." popup immediately so user knows it's working
+            const popup = L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`
+                <div style="text-align:center; padding: 10px; color: #333;">
+                    <div class="loader" style="border: 3px solid #f3f3f3; border-top: 3px solid #6C2BF2; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+                    Fetching real-time wind data...
+                </div>
+                <style>@keyframes spin {0% {transform: rotate(0deg);} 100% {transform: rotate(360deg);}}</style>
+            `)
+                .openOn(map);
+
+            try {
+                // 2. Fetch Data from Open-Meteo (Free, No Key required)
+                // We request: temperature, windspeed, winddirection, weathercode
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.current_weather) {
+                    const cw = data.current_weather;
+                    const windDirArrow = getWindArrow(cw.winddirection);
+                    const desc = getWeatherDesc(cw.weathercode);
+
+                    // 3. Update Popup with Styled Content
+                    popup.setContent(`
+                    <div style="min-width: 220px; font-family: 'Inter', sans-serif; color: #333;">
+                        <div style="background: #6C2BF2; color: white; padding: 8px 12px; border-radius: 6px 6px 0 0; margin: -1px -1px 10px -1px;">
+                            <h4 style="margin:0; font-size: 0.95rem;">Live Weather Analysis</h4>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 5px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 2rem; font-weight: 700; color: #6C2BF2;">
+                                    ${cw.windspeed}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #666; text-transform: uppercase; font-weight: 600;">
+                                    Wind (km/h)
+                                </div>
+                            </div>
+                            <div style="text-align: center; border-left: 1px solid #eee; padding-left: 15px;">
+                                <div style="font-size: 1.5rem; color: #333;">
+                                    ${windDirArrow}
+                                </div>
+                                <div style="font-size: 0.75rem; color: #666; font-weight: 600;">
+                                    ${cw.winddirection}°
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="background: #f4f6f8; padding: 10px; border-radius: 8px; font-size: 0.9rem;">
+                            <div style="margin-bottom: 6px; display:flex; justify-content:space-between;">
+                                <span><strong>Temp:</strong></span>
+                                <span>${cw.temperature}°C</span>
+                            </div>
+                            <div style="margin-bottom: 6px; display:flex; justify-content:space-between;">
+                                <span><strong>Condition:</strong></span>
+                                <span>${desc}</span>
+                            </div>
+                            <div style="font-size: 0.75rem; color: #999; margin-top: 8px; text-align: right;">
+                                Lat: ${lat.toFixed(2)}, Lon: ${lng.toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                `);
+                } else {
+                    popup.setContent('<p>Weather data unavailable for this location.</p>');
+                }
+            } catch (err) {
+                console.error(err);
+                popup.setContent('<p style="color:red;">Error fetching data. Check internet connection.</p>');
+            }
+        });
+
+        // ---------------------------------------------------------
+        // END NEW FEATURE
+        // ---------------------------------------------------------
+
+        // Keep your Search Logic & Heatmap logic below this if you want to retain it
+        // (You can copy the searchControl and Heatmap fetch from your original file here)
+    </script>
+
+    <!-- Dangerous Weather Popup -->
+    <div id="danger-popup">
+        <div class="danger-content">
+            <div class="danger-icon">⚠️</div>
+            <h2>DANGER WARNING</h2>
+            <p id="danger-message">Extreme conditions detected in this area.</p>
+            <div class="danger-stat">
+                <span>Wind Speed</span>
+                <strong id="danger-wind">0 km/h</strong>
+            </div>
+            <button onclick="closeDangerPopup()">Dismiss</button>
+        </div>
+    </div>
+
+    <style>
+        #danger-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .danger-content {
+            background: rgba(40, 10, 10, 0.95);
+            border: 2px solid #FF4444;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+            box-shadow: 0 0 50px rgba(255, 68, 68, 0.4);
+            max-width: 400px;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Animated scan line */
+        .danger-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: #FF4444;
+            animation: scan 2s linear infinite;
+            opacity: 0.5;
+        }
+
+        @keyframes scan {
+            0% {
+                top: 0;
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
+        }
+
+        .danger-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: shake 0.5s infinite;
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: rotate(0deg);
+            }
+
+            25% {
+                transform: rotate(-10deg);
+            }
+
+            75% {
+                transform: rotate(10deg);
+            }
+        }
+
+        #danger-popup h2 {
+            font-family: 'Playfair Display', serif;
+            /* Matching landing page font */
+            color: #FF4444;
+            margin: 0 0 10px;
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #danger-popup p {
+            color: #eee;
+            margin-bottom: 25px;
+            font-size: 1.1rem;
+        }
+
+        .danger-stat {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid rgba(255, 68, 68, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .danger-stat strong {
+            font-size: 1.5rem;
+            color: #FF4444;
+        }
+
+        #danger-popup button {
+            background: #FF4444;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #danger-popup button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+
+</body>
+
+</html>

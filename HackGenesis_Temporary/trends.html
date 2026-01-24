@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Risk Trend Graphs</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            background: #0D0716;
+            color: #EDEAFB;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .back-btn {
+            background: #6C2BF2;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        canvas {
+            width: 100% !important;
+            /* Keep width fluid for container */
+            height: 300px !important;
+            /* Fixed height */
+        }
+
+        @media(max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="frontend.html" class="back-btn">← Back to Home</a>
+        <h1>Risk Trend Analysis</h1>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Sea Level Rise (Past 7 Days)</h2>
+                <canvas id="seaLevelChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Pollution Levels (PM 2.5)</h2>
+                <canvas id="pollutionChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Cyclone Intensity Forecast</h2>
+                <canvas id="cycloneChart"></canvas>
+            </div>
+            <div class="card">
+                <h2>Community Reports (Frequency)</h2>
+                <canvas id="reportsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8001';
+
+        const commonOptions = {
+            responsive: false, // Make graph static (fixed size)
+            animation: false,  // Disable animation (renders instantly)
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: {
+                        color: '#bbb',
+                        maxTicksLimit: 6,
+                        callback: function (value) {
+                            // Show integers only if value is whole, else 1 decimal
+                            return Number.isInteger(value) ? value : value.toFixed(1);
+                        }
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(255,255,255,0.1)' },
+                    ticks: { color: '#bbb' }
+                }
+            },
+            plugins: {
+                legend: { labels: { color: '#fff' } }
+            }
+        };
+
+        async function initCharts() {
+            try {
+                const res = await fetch(`${API_URL}/trends/data`);
+                const data = await res.json();
+
+                // 1. Sea Level
+                new Chart(document.getElementById('seaLevelChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.dates_7d,
+                        datasets: [{
+                            label: 'Tide Height (m)',
+                            data: data.sea_level,
+                            borderColor: '#6C2BF2',
+                            backgroundColor: 'rgba(108, 43, 242, 0.2)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: {
+                            ...commonOptions.scales,
+                            y: {
+                                ...commonOptions.scales.y,
+                                min: 0,
+                                max: 5
+                            }
+                        }
+                    }
+                });
+
+                // 2. Pollution
+                new Chart(document.getElementById('pollutionChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.dates_7d,
+                        datasets: [{
+                            label: 'AQI Level',
+                            data: data.pollution,
+                            backgroundColor: '#E2B714'
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: {
+                            ...commonOptions.scales,
+                            y: {
+                                ...commonOptions.scales.y,
+                                min: 0,
+                                max: 300 // Standard AQI max for "Hazardous"
+                            }
+                        }
+                    }
+                });
+
+                // 3. Cyclone
+                new Chart(document.getElementById('cycloneChart'), {
+                    type: 'line',
+                    data: {
+                        labels: data.cyclone_labels,
+                        datasets: [{
+                            label: 'Wind Speed Forecast (km/h)',
+                            data: data.cyclone_data,
+                            borderColor: '#FF4444',
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        ...commonOptions,
+                        scales: {
+                            ...commonOptions.scales,
+                            y: {
+                                ...commonOptions.scales.y,
+                                min: 0,
+                                max: 150 // Strong cyclone range
+                            }
+                        }
+                    }
+                });
+
+                // 4. Reports
+                new Chart(document.getElementById('reportsChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Flood', 'Pollution', 'Erosion', 'Other'],
+                        datasets: [{
+                            data: data.reports_dist,
+                            backgroundColor: ['#6C2BF2', '#E2B714', '#FF4444', '#00CC66']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { labels: { color: '#fff' } } }
+                    }
+                });
+
+            } catch (e) {
+                console.error("Failed to fetch trend data", e);
+            }
+        }
+
+        window.onload = initCharts;
+    </script>
+</body>
+
+</html>
