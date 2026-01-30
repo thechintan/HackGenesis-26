@@ -59,6 +59,7 @@ class Alert(Base):
     message = Column(String)
     severity = Column(String) # High, Medium, Low
     alert_type = Column(String) # Cyclone, Algal Bloom, etc.
+    source = Column(String, default="Unknown") # e.g. Satellite, IoT
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class AidRequest(Base):

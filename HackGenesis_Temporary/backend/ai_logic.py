@@ -120,7 +120,8 @@ def generate_dynamic_alerts():
         {"loc": "Coastal Kerala", "lat": 9.9312, "lon": 76.2673, "type": "Weather", "title": "Heavy Rainfall Advisory"},
         {"loc": "Chennai", "lat": 13.0827, "lon": 80.2707, "type": "Tsunami", "title": "Seismic Activity Alert"},
         {"loc": "Puri", "lat": 19.8135, "lon": 85.8312, "type": "Weather", "title": "High Tide Warning"},
-        {"loc": "Gujarat Coast", "lat": 21.6, "lon": 69.6, "type": "Oil Spill", "title": "Oil Spill Detection"},
+        {"loc": "Gujarat Coast (Surat)", "lat": 21.1702, "lon": 72.8311, "type": "Flood", "title": "Tapi River Surge Alert"},
+        {"loc": "Surat Beach (Dumas)", "lat": 21.0688, "lon": 72.7231, "type": "Weather", "title": "High Wind Alert"},
         {"loc": "Andaman", "lat": 11.7401, "lon": 92.6586, "type": "Storm", "title": "Tropical Storm Watch"}
     ]
 
@@ -132,11 +133,12 @@ def generate_dynamic_alerts():
         "Weather": "Extreme weather conditions forecast for next 24 hours.",
         "Tsunami": "Undersea earthquake detected. Monitor coastal sirens.",
         "Oil Spill": "Satellite imagery confirms oil slick. Containment teams notified.",
-        "Storm": "Tropical storm forming. Fishermen return to shore."
+        "Storm": "Tropical storm forming. Fishermen return to shore.",
+        "Flood": "River levels rising rapidly due to upstream discharge. Evacuate low-lying areas."
     }
 
-    # Randomly select 3-5 threats to be "active" right now
-    active_threats = random.sample(base_threats, k=random.randint(3, 5))
+    # Randomly select 4-6 threats (increased slightly to ensure Surat likely appears or we can force it)
+    active_threats = random.sample(base_threats, k=random.randint(4, 7))
 
     for t in active_threats:
         # Jitter location slightly
@@ -146,6 +148,10 @@ def generate_dynamic_alerts():
         # Random severity
         severity = random.choice(["High", "Medium", "Low"])
         
+        # Simulated Source for "Integrated" feel
+        sources = ["Sentinel-1 Satellite", "Coastal Buoy Sensor", "MetDept Radar", "Community Report", "IoT Network"]
+        source = random.choice(sources)
+        
         alerts_data.append({
             "location": t["loc"],
             "lat": lat_jitter,
@@ -153,7 +159,8 @@ def generate_dynamic_alerts():
             "title": t["title"],
             "message": messages.get(t["type"], "Anomaly detected."),
             "severity": severity,
-            "alert_type": t["type"]
+            "alert_type": t["type"],
+            "source": source
         })
         
     return alerts_data
