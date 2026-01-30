@@ -53,6 +53,7 @@
             margin: 0;
             background: linear-gradient(90deg, #fff, var(--brand-purple));
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -346,19 +347,31 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:8001';
+        // Use relative URL or same origin to avoid CORS and localhost issues
+        const API_URL = window.location.origin;
+
+        // Auth Check
+        function checkAuth() {
+            const role = localStorage.getItem('role');
+            if (role !== 'authority') {
+                alert('Access Denied: Authorities only.');
+                window.location.href = 'frontend.html';
+            }
+        }
 
         async function loadDashboard() {
             try {
                 const res = await fetch(`${API_URL}/authority/dashboard-data`);
+                if (!res.ok) throw new Error('Failed to fetch dashboard data');
                 const data = await res.json();
 
-                renderPosts(data.prioritized_posts);
-                renderAidRequests(data.aid_requests);
+                renderPosts(data.prioritized_posts || []);
+                renderAidRequests(data.aid_requests || []);
 
             } catch (err) {
-                console.error(err);
-                // alert('Dashboard sync failed. Ensure backend service is reachable.');
+                console.error('Dashboard Load Error:', err);
+                const container = document.getElementById('posts-feed');
+                if (container) container.innerHTML = '<div class="empty-state">Unable to sync with command center. Check backend.</div>';
             }
         }
 
@@ -370,25 +383,26 @@
             }
 
             container.innerHTML = posts.map(p => {
-                const riskLevel = p.risk_score > 75 ? 'High' : (p.risk_score > 40 ? 'Medium' : 'Low');
-                const riskColor = p.risk_score > 75 ? '#FF4444' : (p.risk_score > 40 ? '#FFAA00' : '#00CC66');
+                const score = p.risk_score || 0;
+                const riskLevel = score > 75 ? 'High' : (score > 40 ? 'Medium' : 'Low');
+                const riskColor = score > 75 ? '#FF4444' : (score > 40 ? '#FFAA00' : '#00CC66');
 
                 return `
                     <div class="card">
                         <div class="card-top">
                             <span class="priority-badge priority-${riskLevel}">AI PRIORITY: ${riskLevel}</span>
                             <div class="risk-score-circle" style="border-color:${riskColor}; color:${riskColor}">
-                                ${p.risk_score}
+                                ${score}
                                 <span>SCORE</span>
                             </div>
                         </div>
                         ${p.image_data ? `<div class="image-preview" style="background-image: url('${p.image_data}')"></div>` : ''}
                         <div class="card-content">
-                            <h4>${p.caption}</h4>
-                            <p>${p.description}</p>
+                            <h4>${p.caption || 'Untitled Report'}</h4>
+                            <p>${p.description || 'No description provided.'}</p>
                             <div class="card-meta">
-                                <span><i class="ph-bold ph-map-pin"></i> ${p.location}</span>
-                                <span><i class="ph-bold ph-clock"></i> ${new Date(p.created_at).toLocaleTimeString()}</span>
+                                <span><i class="ph-bold ph-map-pin"></i> ${p.location || 'Unknown'}</span>
+                                <span><i class="ph-bold ph-clock"></i> ${p.created_at ? new Date(p.created_at).toLocaleTimeString() : 'N/A'}</span>
                             </div>
                         </div>
                         <div class="card-actions">
@@ -416,22 +430,23 @@
 
             container.innerHTML = requests.map(req => {
                 const urgency = req.urgency || 'Low';
+                const timeStr = req.timestamp ? new Date(req.timestamp).toLocaleTimeString() : 'N/A';
                 return `
                     <div class="card">
                         <div class="card-top">
                             <span class="priority-badge priority-${urgency}">URGENCY: ${urgency.toUpperCase()}</span>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">${new Date(req.timestamp).toLocaleTimeString()}</span>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</span>
                         </div>
                         <div class="card-content">
-                            <h4 style="color:var(--accent-gold)">${req.needs} Need</h4>
-                            <p><strong>Reporter:</strong> ${req.user_name} (${req.contact})</p>
-                            <p>${req.description}</p>
+                            <h4 style="color:var(--accent-gold)">${req.needs || 'General'} Need</h4>
+                            <p><strong>Reporter:</strong> ${req.user_name || 'Anonymous'} (${req.contact || 'No contact info'})</p>
+                            <p>${req.description || 'No description.'}</p>
                             <div class="card-meta">
-                                <span><i class="ph-bold ph-map-pin"></i> ${req.location}</span>
+                                <span><i class="ph-bold ph-map-pin"></i> ${req.location || 'N/A'}</span>
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn" style="background:var(--success)" onclick="takeAction('Aid worker assigned to ${req.user_name}')">
+                            <button class="btn" style="background:var(--success)" onclick="takeAction('Aid worker assigned to ${req.user_name || 'requester'}')">
                                 <i class="ph-bold ph-check-circle"></i> Respond Now
                             </button>
                             <button class="btn btn-secondary" onclick="takeAction('Calling ${req.contact}...')">
@@ -451,10 +466,12 @@
         }
 
         function logout() {
+            localStorage.clear();
             window.location.href = 'frontend.html';
         }
 
         // Init
+        checkAuth();
         loadDashboard();
         // Auto-refresh every 15 seconds
         setInterval(loadDashboard, 15000);

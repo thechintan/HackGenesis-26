@@ -14,7 +14,7 @@ try:
         name="Coastal Admin",
         email="authority@coastaleye.com",
         # In a real app, use hashed passwords
-        hashed_password="hashed_password_123",
+        hashed_password="passwordnotreallyhashed",
         role="authority"
     )
     db.add(auth_user)
@@ -22,7 +22,7 @@ try:
     reg_user = User(
         name="John Doe",
         email="user@example.com",
-        hashed_password="hashed_password_123",
+        hashed_password="passwordnotreallyhashed",
         role="user"
     )
     db.add(reg_user)

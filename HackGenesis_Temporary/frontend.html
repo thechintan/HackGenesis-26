@@ -529,12 +529,12 @@
     }
 
     /* Team */
-    .team-grid {
+    /* .team-grid {
       display: grid;
       gap: 26px;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       margin-top: 28px;
-    }
+    } */
 
     .member {
       text-align: center;
@@ -886,13 +886,17 @@
         <a href="#home">Home</a>
         <a href="#features">Features</a>
         <a href="#about">About</a>
-        <a href="#team">Team</a>
+        <!-- <a href="#team">Team</a> -->
         <a href="#contact">Contact</a>
       </nav>
 
-      <div class="actions">
+      <div class="actions" id="header-actions">
         <button class="btn gold shine" id="login-btn" aria-label="Login">Login</button>
         <button class="btn shine" id="signup-btn" aria-label="Sign Up">Sign Up</button>
+        <div id="user-profile" style="display:none; align-items:center; gap:15px;">
+          <span id="display-name" style="font-weight:500; font-size:0.9rem;"></span>
+          <button class="btn" id="logout-btn" style="padding: 6px 12px; font-size:0.8rem;">Logout</button>
+        </div>
         <span class="burger" id="burger" aria-label="Open menu"><i class="ph-bold ph-list"></i></span>
       </div>
     </div>
@@ -1014,14 +1018,14 @@
       </div>
     </section>
 
-    <!-- Team  -->
+    <!-- Team
     <section id="team" class="section">
       <div class="container">
         <h2>Our Team</h2>
         <p class="subline">We are Team CoastalEye-for you</p>
-        <div class="divider" aria-hidden="true"></div>
+        <div class="divider" aria-hidden="true"></div> -->
 
-        <div class="team-grid">
+    <!-- <div class="team-grid">
           <article class="member shine">
             <img src="IMG_20240217_155534.jpg" alt="Jane Doe, Founder & CEO" />
             <h4>Chintan Boghani</h4>
@@ -1049,9 +1053,9 @@
             <p class="role">Backend dev</p>
             <p class="note">"Passionate about turning ideas into impact"</p>
           </article>
-        </div>
-      </div>
-    </section>
+        </div> -->
+    <!-- </div>
+    </section> -->
 
     <!-- Contact  -->
     <section id="contact" class="section">
@@ -1233,11 +1237,48 @@
   </aside>
 
   <script>
-    const API_URL = 'http://localhost:8001'; // Backend URL
+    // Use same origin to avoid localhost issues
+    const API_URL = window.location.origin;
 
-    document.getElementById("myButton").onclick = function () {
-      window.location.href = "posts.html";
-    };
+    // Auth State Management
+    function updateUIForAuth() {
+      const token = localStorage.getItem('token');
+      const name = localStorage.getItem('user_name');
+      const role = localStorage.getItem('role');
+
+      const loginBtn = document.getElementById('login-btn');
+      const signupBtn = document.getElementById('signup-btn');
+      const userProfile = document.getElementById('user-profile');
+      const displayName = document.getElementById('display-name');
+
+      if (token) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (signupBtn) signupBtn.style.display = 'none';
+        if (userProfile) {
+          userProfile.style.display = 'flex';
+          displayName.textContent = name || 'User';
+
+          // If authority, maybe show a badge or direct link
+          if (role === 'authority' && !displayName.innerHTML.includes('ph-shield')) {
+            displayName.innerHTML = `<i class="ph-bold ph-shield-check" style="color:var(--brand-purple)"></i> ${name}`;
+            displayName.style.cursor = 'pointer';
+            displayName.onclick = () => window.location.href = 'authority_dashboard.html';
+            displayName.title = "Go to Dashboard";
+          }
+        }
+      } else {
+        if (loginBtn) loginBtn.style.display = 'block';
+        if (signupBtn) signupBtn.style.display = 'block';
+        if (userProfile) userProfile.style.display = 'none';
+      }
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.reload();
+    }
+
+    document.getElementById("logout-btn")?.addEventListener('click', logout);
 
     // Auth State Helper
     function getAuth() {
@@ -1249,13 +1290,15 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+      updateUIForAuth();
+
       // Header scroll effect
       const header = document.querySelector('.header');
       window.addEventListener('scroll', () => {
         header.classList.toggle('scrolled', window.scrollY > 50);
       });
 
-      // Section fade-in on scroll
+      // Rest of the init code...
       const sections = document.querySelectorAll('.section');
       const io = new IntersectionObserver((entries, obs) => {
         entries.forEach(e => {
@@ -1298,11 +1341,13 @@
       const signupModal = document.getElementById('signup-modal');
 
       const openModal = (modal) => {
+        if (!modal) return;
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         tray.classList.remove('open');
       };
       const closeModal = (modal) => {
+        if (!modal) return;
         modal.style.display = 'none';
         document.body.style.overflow = '';
       };
@@ -1327,8 +1372,8 @@
       // --- API INTEGRATION START ---
 
       // Login Logic
-      const loginForm = loginModal.querySelector('form');
-      loginForm.addEventListener('submit', async (e) => {
+      const loginForm = loginModal?.querySelector('form');
+      loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
@@ -1340,7 +1385,10 @@
             body: JSON.stringify({ email, password })
           });
 
-          if (!res.ok) throw new Error('Login failed');
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || 'Login failed');
+          }
 
           const data = await res.json();
           localStorage.setItem('token', data.access_token);
@@ -1348,28 +1396,30 @@
           localStorage.setItem('role', data.role);
           localStorage.setItem('user_name', data.name);
 
-          alert(`Welcome back, ${data.name}!`);
+          updateUIForAuth();
           closeModal(loginModal);
 
           if (data.role === 'authority') {
             window.location.href = 'authority_dashboard.html';
+          } else {
+            alert(`Welcome back, ${data.name}!`);
           }
 
         } catch (err) {
-          alert('Invalid credentials. Please try again.');
+          alert(err.message || 'Invalid credentials. Please try again.');
           console.error(err);
         }
       });
 
       // Signup Logic
-      const signupForm = signupModal.querySelector('form');
-      signupForm.addEventListener('submit', async (e) => {
+      const signupForm = signupModal?.querySelector('form');
+      signupForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('signup-name').value;
         const email = document.getElementById('signup-email').value;
         const password = document.getElementById('signup-password').value;
         const confirm = document.getElementById('confirm-password').value;
-        const role = document.querySelector('input[name="user-type"]:checked').value; // 'normal' or 'authority'
+        const role = document.querySelector('input[name="user-type"]:checked').value;
 
         if (password !== confirm) {
           alert("Passwords do not match!");
