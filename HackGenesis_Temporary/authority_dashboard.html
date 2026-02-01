@@ -406,13 +406,13 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn" onclick="takeAction('Dispatching assessment team...')">
+                            <button class="btn" onclick="updatePostStatus('${p.id}', 'Resolved', 'Dispatching Team...')">
                                 <i class="ph-bold ph-truck"></i> Dispatch
                             </button>
-                            <button class="btn btn-secondary" onclick="takeAction('Alerting local residents...')">
+                            <button class="btn btn-secondary" onclick="updatePostStatus('${p.id}', 'Notified', 'Alert sent to locals.')">
                                 <i class="ph-bold ph-megaphone"></i> Notify Locals
                             </button>
-                            <button class="btn btn-danger" onclick="takeAction('Post marked as false alarm.')">
+                            <button class="btn btn-danger" onclick="updatePostStatus('${p.id}', 'Dismissed', 'Post dismissed.')">
                                 <i class="ph-bold ph-warning-circle"></i> Dismiss
                             </button>
                         </div>
@@ -446,19 +446,52 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn" style="background:var(--success)" onclick="takeAction('Aid worker assigned to ${req.user_name || 'requester'}')">
+                            <button class="btn" style="background:var(--success)" onclick="updateAidStatus('${req.id}', 'In Progress', 'Accepted request.')">
                                 <i class="ph-bold ph-check-circle"></i> Respond Now
                             </button>
-                            <button class="btn btn-secondary" onclick="takeAction('Calling ${req.contact}...')">
+                            <button class="btn btn-secondary" onclick="alert('Contact: ${req.contact ? req.contact : 'No info'}')">
                                 <i class="ph-bold ph-phone"></i> Contact
                             </button>
-                            <button class="btn btn-secondary" onclick="takeAction('Resource request forwarded to NGO network.')">
+                            <button class="btn btn-secondary" onclick="updateAidStatus('${req.id}', 'Delegated', 'Request delegated.')">
                                 <i class="ph-bold ph-share-network"></i> Delegate
+                            </button>
+                            <button class="btn btn-danger" onclick="updateAidStatus('${req.id}', 'Resolved', 'Request marked done.')">
+                                <i class="ph-bold ph-check"></i> Done
                             </button>
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        async function updatePostStatus(postId, status, msg) {
+            if (!confirm(`Mark post as ${status}?`)) return;
+            try {
+                const res = await fetch(`${API_URL}/authority/posts/${postId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                if (res.ok) {
+                    alert(msg);
+                    loadDashboard();
+                } else { alert("Failed to update status"); }
+            } catch (e) { console.error(e); }
+        }
+
+        async function updateAidStatus(reqId, status, msg) {
+            if (!confirm(`Mark request as ${status}?`)) return;
+            try {
+                const res = await fetch(`${API_URL}/authority/aid-requests/${reqId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: status })
+                });
+                if (res.ok) {
+                    alert(msg);
+                    loadDashboard();
+                } else { alert("Failed to update status"); }
+            } catch (e) { console.error(e); }
         }
 
         function takeAction(msg) {

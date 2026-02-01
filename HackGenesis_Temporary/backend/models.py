@@ -32,6 +32,7 @@ class Post(Base):
     
     # Community interaction
     likes = Column(Integer, default=0)
+    status = Column(String, default="Open") # Open, Resolved, Dismissed
     
     owner = relationship("User", back_populates="posts")
     comments = relationship("Comment", back_populates="post")

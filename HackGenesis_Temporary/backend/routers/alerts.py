@@ -27,6 +27,9 @@ def get_alerts(lat: float = None, lon: float = None, radius_km: float = 50, db: 
             from ..services.live_data import get_real_time_alerts
             live_alerts = get_real_time_alerts(lat, lon)
             
+            # Define IST timezone
+            IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
             # Convert to response format
             for a in live_alerts:
                 response.append({
@@ -39,7 +42,7 @@ def get_alerts(lat: float = None, lon: float = None, radius_km: float = 50, db: 
                     "severity": a["severity"],
                     "alert_type": a["type"],
                     "source": a["source"],
-                    "created_at": datetime.datetime.now(),
+                    "created_at": datetime.datetime.now(IST),
                     "distance_km": 0, # Calculated client side or roughly here
                     "cpi": 50, # dynamic calc needed ideally
                     "priority_score": 100 if a["severity"] == "High" else 50
