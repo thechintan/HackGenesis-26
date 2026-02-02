@@ -436,11 +436,35 @@
     let posts = [];
 
     // Auth Check
-    const user_id = localStorage.getItem('user_id');
-    if (!user_id) {
-      alert("Please login first!");
-      window.location.href = "frontend.html";
+    // Auth Check & Session Sync
+    let user_id = localStorage.getItem('user_id');
+    const token = localStorage.getItem('token');
+
+    async function verifySession() {
+      if (user_id && token) {
+        try {
+          const res = await fetch(`${API_URL}/auth/me?user_id=${user_id}`);
+          if (res.ok) {
+            const userData = await res.json();
+            localStorage.setItem('user_name', userData.name);
+            localStorage.setItem('role', userData.role);
+            // Update current scope user_id if needed, though usually id doesn't change
+            // user_id = userData.id; 
+          } else {
+            // If session invalid, maybe logout? For now just warn.
+            console.warn("Session invalid");
+          }
+        } catch (e) {
+          console.warn("Session sync failed");
+        }
+      } else {
+        alert("Please login first!");
+        window.location.href = "frontend.html";
+      }
     }
+
+    // Run verification immediately
+    verifySession();
 
     const loadPosts = async () => {
       try {

@@ -363,9 +363,28 @@
 
         let currentView = 'active';
 
-        // Auth Check
-        function checkAuth() {
-            const role = localStorage.getItem('role');
+        // Auth Check & Session Sync
+        async function checkAuth() {
+            let role = localStorage.getItem('role');
+            const userId = localStorage.getItem('user_id');
+            const token = localStorage.getItem('token');
+
+            // 1. Sync Session Logic
+            if (userId && token) {
+                try {
+                    const res = await fetch(`${API_URL}/auth/me?user_id=${userId}`);
+                    if (res.ok) {
+                        const userData = await res.json();
+                        localStorage.setItem('user_name', userData.name);
+                        localStorage.setItem('role', userData.role);
+                        role = userData.role; // Update local var for check below
+                    }
+                } catch (e) {
+                    console.warn("Session sync failed");
+                }
+            }
+
+            // 2. Role Enforcement
             if (role !== 'authority') {
                 alert('Access Denied: Authorities only.');
                 window.location.href = 'frontend.html';

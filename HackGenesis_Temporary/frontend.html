@@ -1252,7 +1252,25 @@
       let token = localStorage.getItem('token');
       let userId = localStorage.getItem('user_id');
 
-      // Verify Session with Backend (Fixes the "Coastal Admin" persistence bug)
+      // 1. INTEGRITY CHECK: Ensure User ID matches Token
+      // This fixes the issue where the browser might revert to a cached User ID (e.g. Admin) 
+      // while holding a valid User Token (e.g. Shubham).
+      if (token && userId) {
+        try {
+          // Token format: "fake-token-{id}" or "bearer fake-token-{id}"
+          const cleanToken = token.replace('bearer ', '').replace('Bearer ', '');
+          const parts = cleanToken.split('-');
+          const tokenId = parts[parts.length - 1]; // The ID is the last part
+
+          if (tokenId && tokenId !== userId) {
+            console.warn(`Session Correction: ID ${userId} -> ${tokenId}`);
+            userId = tokenId;
+            localStorage.setItem('user_id', userId);
+          }
+        } catch (e) { console.error("Integrity check failed", e); }
+      }
+
+      // 2. Sync Session with Backend
       if (userId && token) {
         try {
           // Use relative URL handling or explicit API_URL
@@ -1304,8 +1322,8 @@
           } else {
             // Normal User View
             displayName.innerHTML = `
-                <div style="width:32px; height:32px; min-width:32px; background:linear-gradient(135deg, #E2B714, #FFAA00); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(226,183,20,0.3); overflow:hidden;">
-                    <img src="https://png.pngtree.com/png-vector/20251204/ourlarge/pngtree-generic-user-icon-simple-profile-symbol-for-website-and-app-design-png-image_18109753.webp" style="width:100%; height:100%; object-fit:cover;" alt="User">
+                <div style="width:32px; height:32px; min-width:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; overflow:hidden; border: 1px solid rgba(255,255,255,0.2);">
+                    <img src="https://thumbs.dreamstime.com/b/person-icon-black-background-person-solid-vector-eps-90447225.jpg" style="width:100%; height:100%; object-fit:cover;" alt="User">
                 </div>
                 <span style="white-space:nowrap;">${name || 'User'}</span>
               `;
