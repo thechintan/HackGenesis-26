@@ -5,7 +5,8 @@
 ## 🚀 Key Features
 
 ### 🌍 For the Community (Public Interface)
-- **Live Threat Map**: interactive map visualizing real-time wind, weather, and potential risk zones using Leaflet and Open-Meteo API.
+- **Live Threat Map**: Interactive map visualizing real-time wind, weather, and potential risk zones.
+- **Satellite & IoT Data Integration**: Aggregates real-time sensor data from **Open-Meteo** (Satellite Weather) and **USGS** (Seismic IoT Sensors) to detect cyclones and tsunamis instantly.
 - **Community Sentinel**: A social feed for users to report local hazards (with image uploads and geolocation).
 - **Humanitarian Aid Hub**: Request emergency assistance (Medical, Food, Evacuation) with urgency levels.
 - **Risk Trends**: Visual analytics of flood, storm, and tsunami risks over time.
@@ -21,7 +22,10 @@
 - **Frontend**: Vanilla HTML5, CSS3 (Glassmorphism Design), JavaScript (ES6+).
 - **Backend**: Python (FastAPI).
 - **Database**: SQLite (managed via SQLAlchemy).
-- **APIs**: Open-Meteo (Weather), Leaflet (Maps).
+- **Real-Time Data APIs**:
+    - **Open-Meteo**: Satellite-based weather and wind speed data.
+    - **USGS**: IoT Seismic Sensor networks for earthquake/tsunami detection.
+    - **Leaflet**: Geospatial mapping.
 - **Design**: Responsive, Dark-themed UI with `Inter` and `Playfair Display` typography.
 
 ## ⚙️ Installation & Setup
