@@ -891,11 +891,47 @@
       </nav>
 
       <div class="actions" id="header-actions">
+        <!-- Dynamic Action Button (My Status OR Dashboard) -->
+        <button class="btn" id="action-btn-dynamic"
+          style="display:none; align-items:center; gap:8px; border-color:var(--brand-purple);">
+          <!-- Content injected by JS -->
+        </button>
+
         <button class="btn shine" id="login-btn" aria-label="Login">Login</button>
         <button class="btn shine" id="signup-btn" aria-label="Sign Up">Sign Up</button>
-        <div id="user-profile" style="display:none; align-items:center; gap:15px;">
-          <span id="display-name" style="font-weight:500; font-size:0.9rem;"></span>
-          <button class="btn" id="logout-btn" style="padding: 6px 12px; font-size:0.8rem;">Logout</button>
+        <div id="user-profile" style="display:none; align-items:center;">
+          <!-- Profile Badge -->
+          <div id="display-name" style="
+              display:flex; 
+              align-items:center; 
+              gap:12px; 
+              padding:8px 16px 8px 8px; 
+              background: linear-gradient(135deg, rgba(108, 43, 242, 0.15) 0%, rgba(13, 7, 22, 0.4) 100%);
+              border: 1px solid rgba(108, 43, 242, 0.3);
+              backdrop-filter:blur(12px); 
+              border-radius:50px; 
+              font-weight:600; 
+              font-size:0.95rem; 
+              color:var(--text); 
+              margin-right:8px;
+              box-shadow: 0 4px 20px rgba(108, 43, 242, 0.15);
+              transition: all 0.3s ease;">
+            <!-- Injected by JS -->
+          </div>
+
+          <button class="btn" id="logout-btn" style="
+              padding: 8px 16px;
+              border-radius: 12px;
+              background: rgba(255, 68, 68, 0.1);
+              color: #ff8888;
+              border: 1px solid rgba(255, 68, 68, 0.3);
+              font-size: 0.9rem;
+              display: flex;
+              align-items: center;
+              gap: 6px;">
+            <span>Logout</span>
+            <i class="ph-bold ph-sign-out"></i>
+          </button>
         </div>
         <span class="burger" id="burger" aria-label="Open menu"><i class="ph-bold ph-list"></i></span>
       </div>
@@ -1212,8 +1248,27 @@
     const API_URL = window.location.origin;
 
     // Auth State Management
-    function updateUIForAuth() {
-      const token = localStorage.getItem('token');
+    async function updateUIForAuth() {
+      let token = localStorage.getItem('token');
+      let userId = localStorage.getItem('user_id');
+
+      // Verify Session with Backend (Fixes the "Coastal Admin" persistence bug)
+      if (userId && token) {
+        try {
+          // Use relative URL handling or explicit API_URL
+          const res = await fetch(`${API_URL}/auth/me?user_id=${userId}`);
+          if (res.ok) {
+            const userData = await res.json();
+            // Force update local storage with SOURCE OF TRUTH
+            localStorage.setItem('user_name', userData.name);
+            localStorage.setItem('role', userData.role);
+            // console.log("Session Synced:", userData.name);
+          }
+        } catch (e) {
+          console.warn("Session sync failed, using cached data.");
+        }
+      }
+
       const name = localStorage.getItem('user_name');
       const role = localStorage.getItem('role');
 
@@ -1221,26 +1276,54 @@
       const signupBtn = document.getElementById('signup-btn');
       const userProfile = document.getElementById('user-profile');
       const displayName = document.getElementById('display-name');
+      const dynamicBtn = document.getElementById('action-btn-dynamic');
 
       if (token) {
         if (loginBtn) loginBtn.style.display = 'none';
         if (signupBtn) signupBtn.style.display = 'none';
+
+        // Show Profile
         if (userProfile) {
           userProfile.style.display = 'flex';
-          displayName.textContent = name || 'User';
 
-          // If authority, maybe show a badge or direct link
-          if (role === 'authority' && !displayName.innerHTML.includes('ph-shield')) {
-            displayName.innerHTML = `<i class="ph-bold ph-shield-check" style="color:var(--brand-purple)"></i> ${name}`;
-            displayName.style.cursor = 'pointer';
-            displayName.onclick = () => window.location.href = 'authority_dashboard.html';
-            displayName.title = "Go to Dashboard";
+          if (role === 'authority') {
+            // Authority View
+            displayName.innerHTML = `
+                <div style="width:32px; height:32px; min-width:32px; background:var(--brand-purple); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(108,43,242,0.4);">
+                    <i class="ph-fill ph-shield-check" style="color:white; font-size:18px;"></i>
+                </div>
+                <span style="white-space:nowrap;">${name}</span>
+              `;
+
+            if (dynamicBtn) {
+              dynamicBtn.style.display = 'flex';
+              dynamicBtn.innerHTML = '<i class="ph-fill ph-gauge"></i> Dashboard';
+              dynamicBtn.onclick = () => window.location.href = 'authority_dashboard.html';
+              dynamicBtn.title = "Go to Authority Dashboard";
+            }
+          } else {
+            // Normal User View
+            displayName.innerHTML = `
+                <div style="width:32px; height:32px; min-width:32px; background:linear-gradient(135deg, #E2B714, #FFAA00); border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 10px rgba(226,183,20,0.3); overflow:hidden;">
+                    <img src="https://png.pngtree.com/png-vector/20251204/ourlarge/pngtree-generic-user-icon-simple-profile-symbol-for-website-and-app-design-png-image_18109753.webp" style="width:100%; height:100%; object-fit:cover;" alt="User">
+                </div>
+                <span style="white-space:nowrap;">${name || 'User'}</span>
+              `;
+
+            if (dynamicBtn) {
+              dynamicBtn.style.display = 'flex';
+              dynamicBtn.innerHTML = '<i class="ph-fill ph-file-text"></i> My Status';
+              dynamicBtn.onclick = openMyRequestsModal;
+              dynamicBtn.title = "View Limit Status";
+            }
           }
         }
       } else {
+        // Not Logged In
         if (loginBtn) loginBtn.style.display = 'block';
         if (signupBtn) signupBtn.style.display = 'block';
         if (userProfile) userProfile.style.display = 'none';
+        if (dynamicBtn) dynamicBtn.style.display = 'none'; // Hide dynamic button
       }
     }
 
@@ -1722,6 +1805,82 @@
         style="background: #333; margin-top: 20px;">Close</button>
     </div>
   </div>
+  <!-- My Activity Modal -->
+  <div id="my-requests-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <button class="close-button"
+        onclick="document.getElementById('my-requests-modal').style.display='none'">&times;</button>
+      <h3>My Activity Log</h3>
+      <div id="activity-feed" style="max-height: 400px; overflow-y: auto;">
+        <div class="empty-state" style="text-align:center; padding:20px; color:#aaa;">Loading activity...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function openMyRequestsModal() {
+      let userId = localStorage.getItem('user_id');
+
+      if (!userId) {
+        // Demo fallback
+        // alert("Please log in to see your status.");
+        // return;
+        console.log("No user ID, using demo ID 1");
+        userId = 1;
+      }
+
+      const modal = document.getElementById('my-requests-modal');
+      if (modal) modal.style.display = 'flex';
+
+      const feed = document.getElementById('activity-feed');
+      feed.innerHTML = '<div style="text-align:center; padding:20px;">Fetching your history...</div>';
+
+      try {
+        const apiUrl = (window.location.protocol === 'file:') ? 'http://127.0.0.1:8001' : window.location.origin;
+        const res = await fetch(`${apiUrl}/users/${userId}/activity`);
+        if (!res.ok) throw new Error("Failed to fetch activity");
+        const data = await res.json();
+
+        const allItems = [...data.posts, ...data.aid_requests];
+        // Sort by time desc
+        allItems.sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
+
+        if (allItems.length === 0) {
+          feed.innerHTML = '<div style="text-align:center; padding:20px;">No activity found. Create a post or request aid!</div>';
+          return;
+        }
+
+        feed.innerHTML = allItems.map(item => {
+          const isPost = item.type === 'Community Report';
+          const statusStr = item.status || "Pending";
+          let statusColor = '#aaa';
+          if (statusStr === 'Open' || statusStr === 'Pending') statusColor = 'var(--brand-purple)';
+          if (statusStr === 'In Progress' || statusStr === 'Delegated') statusColor = '#FFAA00';
+          if (statusStr === 'Resolved' || statusStr === 'Completed') statusColor = '#00CC66';
+          if (statusStr === 'Dismissed') statusColor = '#FF4444';
+
+          const title = isPost ? (item.caption || "Community Report") : ((item.needs || "General") + " Request");
+          const date = new Date(item.created_at || item.timestamp).toLocaleString();
+
+          return `
+                    <div style="background:rgba(255,255,255,0.05); padding:16px; border-radius:12px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.1);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <span style="font-weight:600; color:#fff;">${title}</span>
+                            <span style="font-size:0.75rem; padding:2px 8px; border-radius:10px; border:1px solid ${statusColor}; color:${statusColor}">${statusStr}</span>
+                        </div>
+                        <div style="font-size:0.85rem; color:rgba(255,255,255,0.6);">
+                            ${item.type} • ${date}
+                        </div>
+                    </div>
+                `;
+        }).join('');
+
+      } catch (e) {
+        console.error(e);
+        feed.innerHTML = '<div style="text-align:center; padding:20px; color:#FF4444;">Error loading activity. Ensure backend is running.</div>';
+      }
+    }
+  </script>
 </body>
 
 </html>

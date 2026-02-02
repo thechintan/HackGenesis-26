@@ -246,6 +246,8 @@
             gap: 10px;
             border-top: 1px solid var(--glass-border);
             padding-top: 12px;
+            flex-wrap: wrap;
+            /* Make buttons responsive */
         }
 
         .btn {
@@ -322,6 +324,12 @@
         </header>
 
         <div class="dashboard-grid">
+            <div style="grid-column: 1 / -1; display: flex; gap: 10px; margin-bottom: 0px;">
+                <button class="btn" id="tab-active" onclick="switchTab('active')"
+                    style="background:var(--brand-purple)">Active Queue</button>
+                <button class="btn btn-secondary" id="tab-all" onclick="switchTab('all')">All History</button>
+            </div>
+
             <!-- Left Panel: AI Prioritized Community Sentinel Posts -->
             <section class="panel">
                 <div class="panel-header">
@@ -333,7 +341,7 @@
                 </div>
             </section>
 
-            <!-- Right Panel: AI Prioritized Humanitarian Aid Requests -->
+            <!-- Right Panel ... -->
             <section class="panel">
                 <div class="panel-header">
                     <h3><i class="ph-bold ph-hand-heart"></i> Humanitarian Aid Requests</h3>
@@ -348,7 +356,12 @@
 
     <script>
         // Use relative URL or same origin to avoid CORS and localhost issues
-        const API_URL = window.location.origin;
+        let API_URL = window.location.origin;
+        if (window.location.protocol === 'file:') {
+            API_URL = 'http://127.0.0.1:8001';
+        }
+
+        let currentView = 'active';
 
         // Auth Check
         function checkAuth() {
@@ -359,9 +372,21 @@
             }
         }
 
+        function switchTab(view) {
+            currentView = view;
+            // Update buttons
+            document.getElementById('tab-active').className = view === 'active' ? 'btn' : 'btn btn-secondary';
+            document.getElementById('tab-active').style.background = view === 'active' ? 'var(--brand-purple)' : '';
+
+            document.getElementById('tab-all').className = view === 'all' ? 'btn' : 'btn btn-secondary';
+            document.getElementById('tab-all').style.background = view === 'all' ? 'var(--brand-purple)' : '';
+
+            loadDashboard();
+        }
+
         async function loadDashboard() {
             try {
-                const res = await fetch(`${API_URL}/authority/dashboard-data`);
+                const res = await fetch(`${API_URL}/authority/dashboard-data?view=${currentView}`);
                 if (!res.ok) throw new Error('Failed to fetch dashboard data');
                 const data = await res.json();
 
@@ -435,10 +460,14 @@
                     <div class="card">
                         <div class="card-top">
                             <span class="priority-badge priority-${urgency}">URGENCY: ${urgency.toUpperCase()}</span>
-                            <span style="font-size: 0.8rem; color: var(--text-muted);">${timeStr}</span>
+                            <div class="risk-score-circle" style="border-color:${req.urgency_score > 70 ? '#FF4444' : (req.urgency_score > 40 ? '#FFAA00' : '#00CC66')}; color:${req.urgency_score > 70 ? '#FF4444' : (req.urgency_score > 40 ? '#FFAA00' : '#00CC66')}">
+                                ${req.urgency_score || 0}
+                                <span>SCORE</span>
+                            </div>
                         </div>
                         <div class="card-content">
                             <h4 style="color:var(--accent-gold)">${req.needs || 'General'} Need</h4>
+                            <p style="text-align:right; font-size:0.8rem; color:var(--text-muted); margin-top:-5px;">${timeStr}</p>
                             <p><strong>Reporter:</strong> ${req.user_name || 'Anonymous'} (${req.contact || 'No contact info'})</p>
                             <p>${req.description || 'No description.'}</p>
                             <div class="card-meta">
@@ -446,16 +475,16 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="btn" style="background:var(--success)" onclick="updateAidStatus('${req.id}', 'In Progress', 'Accepted request.')">
+                            <button class="btn" style="background:var(--success)" onclick="updateAidStatus('${req.id}', 'In Progress', 'Request marked In Progress.')">
                                 <i class="ph-bold ph-check-circle"></i> Respond Now
                             </button>
-                            <button class="btn btn-secondary" onclick="alert('Contact: ${req.contact ? req.contact : 'No info'}')">
+                            <button class="btn btn-secondary" onclick="contactUser('${req.contact || ''}')">
                                 <i class="ph-bold ph-phone"></i> Contact
                             </button>
-                            <button class="btn btn-secondary" onclick="updateAidStatus('${req.id}', 'Delegated', 'Request delegated.')">
+                            <button class="btn btn-secondary" onclick="delegateRequest('${req.id}')">
                                 <i class="ph-bold ph-share-network"></i> Delegate
                             </button>
-                            <button class="btn btn-danger" onclick="updateAidStatus('${req.id}', 'Resolved', 'Request marked done.')">
+                            <button class="btn btn-danger" onclick="updateAidStatus('${req.id}', 'Resolved', 'Request resolved.')">
                                 <i class="ph-bold ph-check"></i> Done
                             </button>
                         </div>
@@ -480,6 +509,7 @@
         }
 
         async function updateAidStatus(reqId, status, msg) {
+            // "In Progress" is distinct from "Resolved"
             if (!confirm(`Mark request as ${status}?`)) return;
             try {
                 const res = await fetch(`${API_URL}/authority/aid-requests/${reqId}/status`, {
@@ -492,6 +522,44 @@
                     loadDashboard();
                 } else { alert("Failed to update status"); }
             } catch (e) { console.error(e); }
+        }
+
+        function contactUser(contactInfo) {
+            if (!contactInfo || contactInfo === 'No info') {
+                alert("No contact information provided by the user.");
+                return;
+            }
+
+            // Try to detect email or phone
+            const isEmail = contactInfo.includes('@');
+            const isPhone = /\d{10}/.test(contactInfo);
+
+            let action = "";
+            if (isEmail) {
+                if (confirm(`Send email to ${contactInfo}?`)) {
+                    window.location.href = `mailto:${contactInfo}`;
+                    return;
+                }
+            } else if (isPhone) {
+                if (confirm(`Call ${contactInfo}?`)) {
+                    window.location.href = `tel:${contactInfo}`;
+                    return;
+                }
+            }
+
+            // Fallback copy to clipboard
+            navigator.clipboard.writeText(contactInfo).then(() => {
+                alert(`Contact info '${contactInfo}' copied to clipboard.`);
+            }).catch(() => {
+                alert(`Contact Info: ${contactInfo}`);
+            });
+        }
+
+        function delegateRequest(reqId) {
+            const department = prompt("Enter department to delegate to (e.g., Fire Dept, Medical Team, NGO):", "Medical Team");
+            if (!department) return;
+
+            updateAidStatus(reqId, 'Delegated', `Request delegated to ${department}.`);
         }
 
         function takeAction(msg) {

@@ -34,25 +34,49 @@ def calculate_risk_score(text: str, location: str) -> int:
 
     return min(score, 100)
 
-def calculate_aid_priority(needs: str, description: str) -> str:
+def calculate_aid_priority(needs: str, description: str) -> tuple[str, int]:
     """
-    Determines urgency level (High, Medium, Low) for humanitarian aid.
+    Determines urgency level and validation score for humanitarian aid.
+    Returns: (Urgency_Label, Score_0_100)
     """
-    combined = (needs + " " + description).lower()
+    text_lower = (needs + " " + description).lower()
+    score = 0
     
-    # High Priority: Life and Limb
-    high_keywords = ["rescue", "trapped", "bleeding", "medical", "drowning", "ambulance", "stuck", "baby", "elderly"]
+    # Base prioritization based on 'needs' category
+    if "medical" in needs.lower() or "rescue" in needs.lower():
+        score += 50
+    elif "food" in needs.lower() or "water" in needs.lower():
+        score += 30
+    elif "shelter" in needs.lower():
+        score += 20
+        
+    # Keyword analysis (Accumulative)
+    # High Priority Keywords (Critical Life Threat)
+    high_keywords = ["rescue", "trapped", "bleeding", "medical", "drowning", "ambulance", "stuck", "baby", "elderly", "pregnant", "critical"]
     for kw in high_keywords:
-        if kw in combined:
-            return "High"
+        if kw in text_lower:
+            score += 15
             
-    # Medium Priority: Essential needs
-    med_keywords = ["food", "water", "shelter", "medicine", "pregnant", "fever", "electricity"]
+    # Medium Priority Keywords (Essential/Health)
+    med_keywords = ["food", "water", "shelter", "medicine", "fever", "electricity", "supply", "hungry", "sick"]
     for kw in med_keywords:
-        if kw in combined:
-            return "Medium"
+        if kw in text_lower:
+            score += 10
             
-    return "Low"
+    # Length/Detail bonus (Real requests often explain more, but spam can be short)
+    if len(description) > 20: 
+        score += 5
+        
+    # Cap score at 100
+    score = min(score, 100)
+    
+    # Determine Label based on Score
+    if score >= 70:
+        return "High", score
+    elif score >= 40:
+        return "Medium", score
+    else:
+        return "Low", score
 
 def generate_heatmap_data():
     """
