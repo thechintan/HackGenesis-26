@@ -78,9 +78,5 @@ HackGenesis_Temporary/
 └── manage_db.py           # CLI for Database Management
 ```
 
-## 👥 Contributors
-- **Shubham** (Frontend & Design)
-- **Chintan** (Backend & Integration)
-
 ---
 *Built for HackGenesis '26.*
