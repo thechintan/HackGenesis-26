@@ -1,6 +1,8 @@
 # CoastalEye AI - Coastal Threat Alert System 🌊🚨
 
-**CoastalEye AI** is a comprehensive disaster management and coastal monitoring platform designed to provide real-time alerts, community reporting, and authority response coordination. It empowers coastal communities and authorities to stay ahead of natural threats like cyclones, floods, and tsunamis.
+A real-time disaster prevention platform designed to protect lives and properties in coastal regions. The system leverages IoT sensors and satellite datasets to continuously monitor environmental conditions, feeding data into trained machine learning models that detect risk patterns based on historical disaster records — enabling early warnings before a threat escalates.
+
+It is also a comprehensive disaster management and coastal monitoring platform designed to provide real-time alerts, community reporting, and authority response coordination. It empowers coastal communities and authorities to stay ahead of natural threats like cyclones, floods, and tsunamis.
 
 ## 🚀 Key Features
 
